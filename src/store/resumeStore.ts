@@ -1,3 +1,4 @@
+// src/store/resumeStore.ts
 import { create } from 'zustand';
 import { ResumeData, Experience, Education, Skill } from '../types/resume';
 
@@ -17,6 +18,7 @@ interface ResumeStore {
   setZoom: (zoom: number) => void;
   resetZoom: () => void;
   resetResume: () => void;
+  setResumeData: (data: ResumeData) => void; // New method for PDF import
 }
 
 const initialResumeData: ResumeData = {
@@ -157,5 +159,8 @@ export const useResumeStore = create<ResumeStore>((set) => ({
   
   resetZoom: () => set({ zoom: 0.8 }),
   
-  resetResume: () => set({ resumeData: initialResumeData, zoom: 0.8 })
+  resetResume: () => set({ resumeData: initialResumeData, zoom: 0.8 }),
+
+  // New method to set complete resume data (for PDF import)
+  setResumeData: (data) => set({ resumeData: data })
 }));

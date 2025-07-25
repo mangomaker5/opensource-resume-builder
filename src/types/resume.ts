@@ -1,3 +1,4 @@
+// src/types/resume.ts
 export interface PersonalInfo {
   fullName: string;
   email: string;
@@ -39,4 +40,23 @@ export interface ResumeData {
   experience: Experience[];
   education: Education[];
   skills: Skill[];
+}
+
+// New types for PDF import
+export interface PDFParseResult {
+  success: boolean;
+  data?: ResumeData;
+  error?: string;
+}
+
+export interface ParsedSection {
+  startIndex: number;
+  endIndex?: number;
+  content: string[];
+}
+
+export interface ParsingProgress {
+  stage: 'extracting' | 'parsing' | 'populating' | 'complete' | 'error';
+  message: string;
+  progress: number; // 0-100
 }
