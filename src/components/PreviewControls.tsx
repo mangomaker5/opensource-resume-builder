@@ -70,10 +70,10 @@ const PreviewControls: React.FC = () => {
             onChange={(e) => setZoom(parseFloat(e.target.value))}
             className="w-20"
           />
-          <span className="text-sm text-gray-600 min-w-[3rem]">
+          <span className={`text-sm min-w-[3rem] ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
             {Math.round(zoom * 100)}%
           </span>
-          <span className={`text-sm min-w-[3rem] ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+        </div>
         
         <button
           onClick={handleZoomIn}
@@ -112,5 +112,3 @@ const PreviewControls: React.FC = () => {
 };
 
 export default PreviewControls;
-  )
-}
