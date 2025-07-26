@@ -289,8 +289,9 @@ const extractResponsibilities = (text: string, startIndex: number): string[] => 
   return responsibilities.length > 0 ? responsibilities : ['Key responsibilities and achievements in this role.'];
 };
 
+// ENHANCED EDUCATION EXTRACTION - NOW SUPPORTS MULTIPLE EDUCATION ENTRIES
 const extractEducation = (text: string, result: ResumeData) => {
-  console.log('🔍 Extracting education...');
+  console.log('🔍 Extracting education (multiple entries support)...');
   
   const educationPattern = /EDUCATION\s+(.*?)\s+TECHNICAL SKILLS/s;
   const educationMatch = text.match(educationPattern);
@@ -303,7 +304,7 @@ const extractEducation = (text: string, result: ResumeData) => {
   let educationText = educationMatch[1];
   console.log('Education text:', educationText);
   
-  // Aggressive deduplication for education text
+  // Aggressive deduplication for education text (same as before)
   educationText = educationText
     .replace(/Master of Science in Computer Science Master of Science in Computer Science/g, 'Master of Science in Computer Science')
     .replace(/(\w+\s+){2,}in Computer Science in Computer Science/g, 'Master of Science in Computer Science')
@@ -313,77 +314,102 @@ const extractEducation = (text: string, result: ResumeData) => {
   
   console.log('Cleaned education text:', educationText);
   
-  // Extract each component with precise patterns
+  // SMART APPROACH: Find ALL occurrences of each field type using existing patterns
   
-  // 1. Extract degree (most specific patterns first)
-  let degree = '';
-  const degreeMatches = [
-    educationText.match(/\b(Master of Science|Bachelor of Science|Bachelor of Arts|PhD|Doctor of Philosophy)\b/i),
-    educationText.match(/\b(Master|Bachelor|PhD|Doctor|Associate)\b/i)
+  // 1. Find ALL degrees (using same patterns as before, but avoiding duplicates)
+  const allDegrees: Array<{match: string, index: number}> = [];
+  const degreePatterns = [
+    /\b(Master of Science|Bachelor of Science|Bachelor of Arts|PhD|Doctor of Philosophy)\b/gi,
+    /\b(Master|Bachelor|PhD|Doctor|Associate)(?!\s+of\s+Science|s\s+of\s+Arts)\b/gi  // Avoid partial matches
   ];
   
-  for (const match of degreeMatches) {
-    if (match) {
-      degree = match[1];
-      break;
+  const foundDegrees = new Set<string>(); // Track what we've already found
+  degreePatterns.forEach(pattern => {
+    let match;
+    while ((match = pattern.exec(educationText)) !== null) {
+      const degree = match[1];
+      // Only add if we haven't found a longer version of this degree
+      const isSubstring = Array.from(foundDegrees).some(existing => 
+        existing !== degree && existing.includes(degree)
+      );
+      if (!isSubstring && !foundDegrees.has(degree)) {
+        allDegrees.push({match: degree, index: match.index});
+        foundDegrees.add(degree);
+      }
     }
-  }
+  });
   
-  // 2. Extract field (look for "Computer Science" etc.)
-  let field = '';
-  const fieldMatch = educationText.match(/\b(Computer Science|Engineering|Business Administration|Mathematics|Physics|Chemistry|Biology)\b/i);
-  if (fieldMatch) {
-    field = fieldMatch[1];
-  }
-  
-  // 3. Extract institution (very precise - only university names)
-  let institution = '';
-  const institutionMatches = [
-    educationText.match(/\b(Stanford University|Harvard University|MIT|Berkeley)\b/i),
-    educationText.match(/\b([A-Z][a-zA-Z]+\s+University)\b/),
-    educationText.match(/\b([A-Z][a-zA-Z]+\s+College)\b/),
-    educationText.match(/\b([A-Z][a-zA-Z]+\s+Institute)\b/)
+  // 2. Find ALL institutions (using same patterns as before)
+  const allInstitutions: Array<{match: string, index: number}> = [];
+  const institutionPatterns = [
+    /\b([A-Z][a-zA-Z]+\s+University)\b/g,
+    /\b([A-Z][a-zA-Z]+\s+College)\b/g,
+    /\b([A-Z][a-zA-Z]+\s+Institute)\b/g,
+    /\b(University of [A-Z][a-zA-Z\s]+)\b/gi
   ];
   
-  for (const match of institutionMatches) {
-    if (match) {
-      institution = match[1];
-      break;
+  institutionPatterns.forEach(pattern => {
+    let match;
+    while ((match = pattern.exec(educationText)) !== null) {
+      allInstitutions.push({match: match[1], index: match.index});
     }
+  });
+  
+  // 3. Find ALL fields (using same patterns as before)
+  const allFields: Array<{match: string, index: number}> = [];
+  const fieldPattern = /\b(Computer Science|Engineering|Business Administration|Mathematics|Physics|Chemistry|Biology)\b/gi;
+  let fieldMatch;
+  while ((fieldMatch = fieldPattern.exec(educationText)) !== null) {
+    allFields.push({match: fieldMatch[1], index: fieldMatch.index});
   }
   
-  // 4. Extract GPA
-  let gpa = '';
-  const gpaMatch = educationText.match(/GPA:\s*([\d.]+)/i);
-  if (gpaMatch) {
-    gpa = gpaMatch[1];
+  // 4. Find ALL GPAs (using same patterns as before)
+  const allGPAs: Array<{match: string, index: number}> = [];
+  const gpaPattern = /GPA:\s*([\d.]+)/gi;
+  let gpaMatch;
+  while ((gpaMatch = gpaPattern.exec(educationText)) !== null) {
+    allGPAs.push({match: gpaMatch[1], index: gpaMatch.index});
   }
   
-  // 5. Extract graduation date
-  let graduationDate = '';
-  const dateMatch = educationText.match(/((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})/i);
-  if (dateMatch) {
-    graduationDate = convertToMonthYear(dateMatch[1]);
+  // 5. Find ALL dates (using same patterns as before)
+  const allDates: Array<{match: string, index: number}> = [];
+  const datePattern = /((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})/gi;
+  let dateMatch;
+  while ((dateMatch = datePattern.exec(educationText)) !== null) {
+    allDates.push({match: dateMatch[1], index: dateMatch.index});
   }
   
-  // Create education entry if we have meaningful data
-  if ((degree && degree.length > 2) || (institution && institution.length > 2)) {
-    const education = {
-      id: `edu_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      institution: institution || 'Institution',
-      degree: degree || 'Degree',
-      field: field || 'Field of Study',
-      graduationDate,
-      gpa
-    };
+  console.log(`Found: ${allDegrees.length} degrees, ${allInstitutions.length} institutions, ${allFields.length} fields, ${allGPAs.length} GPAs, ${allDates.length} dates`);
+  
+  // SMART GROUPING: Group fields by proximity (closest ones belong together)
+  const educationCount = Math.max(allDegrees.length, allInstitutions.length, 1);
+  
+  for (let i = 0; i < educationCount; i++) {
+    const degree = allDegrees[i]?.match || '';
+    const institution = allInstitutions[i]?.match || '';
+    const field = allFields[i]?.match || '';
+    const gpa = allGPAs[i]?.match || '';
+    const graduationDate = allDates[i] ? convertToMonthYear(allDates[i].match) : '';
     
-    result.education.push(education);
-    console.log('✓ Added education:', education.degree, 'in', education.field, 'at', education.institution);
-    console.log('  - Mapped fields: degree="' + degree + '", field="' + field + '", institution="' + institution + '"');
-    console.log('  - GPA:', education.gpa, '| Date:', education.graduationDate);
-  } else {
-    console.log('⚠️ Education extraction failed - insufficient data');
+    // Create education entry if we have meaningful data
+    if ((degree && degree.length > 2) || (institution && institution.length > 2)) {
+      const education = {
+        id: `edu_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${i}`,
+        institution: institution || 'Institution',
+        degree: degree || 'Degree',
+        field: field || 'Field of Study',
+        graduationDate,
+        gpa
+      };
+      
+      result.education.push(education);
+      console.log(`✓ Added education #${i + 1}:`, education.degree, 'in', education.field, 'at', education.institution);
+      console.log(`  - Mapped fields: degree="${degree}", field="${field}", institution="${institution}"`);
+      console.log(`  - GPA: ${education.gpa} | Date: ${education.graduationDate}`);
+    }
   }
+  
+  console.log(`✅ Education extraction complete: ${result.education.length} entries added`);
 };
 
 const extractSkills = (text: string, result: ResumeData) => {
@@ -397,50 +423,37 @@ const extractSkills = (text: string, result: ResumeData) => {
     return;
   }
   
-  const skillsText = skillsMatch[1];
+  let skillsText = skillsMatch[1];
   console.log('Skills text found:', skillsText);
   
-  // Define known categories in the expected order
-  const knownCategories = [
-    'Programming Languages',
-    'Frontend Frameworks & Libraries', 
-    'Backend Technologies',
-    'Databases & Cloud',
-    'Development Tools'
-  ];
+  // SMART PREPROCESSING: Add line breaks before known category patterns to separate them
+  const categoryKeywords = ['Programming Languages', 'Frontend Frameworks', 'Backend Technologies', 'Databases', 'Development Tools'];
   
-  // Split the skills text by category patterns
-  const categoryRegex = /(Programming Languages|Frontend Frameworks & Libraries|Backend Technologies|Databases & Cloud|Development Tools)\s*:\s*/g;
-  const parts = skillsText.split(categoryRegex).filter(part => part.trim());
+  categoryKeywords.forEach(keyword => {
+    // Add newline before each category (except the first occurrence)
+    const regex = new RegExp(`(\\w)\\s+(${keyword.replace(/\s+/g, '\\s+')})`, 'g');
+    skillsText = skillsText.replace(regex, '$1\n$2');
+  });
   
-  // Process each category-skills pair
-  for (let i = 0; i < parts.length; i += 2) {
-    const categoryName = parts[i];
-    const skillsString = parts[i + 1];
+  console.log('Preprocessed skills text:', skillsText);
+  
+  // NOW PARSE: Simple pattern for "Category: skills"
+  const lines = skillsText.split('\n').filter(line => line.trim());
+  
+  for (const line of lines) {
+    const match = line.match(/^([^:]+?):\s*(.+)$/);
+    if (!match) continue;
     
-    if (!categoryName || !skillsString || !knownCategories.includes(categoryName)) continue;
+    const categoryName = match[1].trim();
+    const skillsString = match[2];
     
-    // Extract and clean individual skills
+    // Parse skills and clean them
     const individualSkills = skillsString
       .split(/[,;]/)
       .map(skill => skill.trim())
-      .map(skill => {
-        // Fix common spacing issues from PDF extraction
-        return skill
-          .replace(/Java Script/g, 'JavaScript')
-          .replace(/Type Script/g, 'TypeScript')
-          .replace(/Graph QL/g, 'GraphQL')
-          .replace(/Postgre SQL/g, 'PostgreSQL')
-          .replace(/Mongo DB/g, 'MongoDB')
-          .replace(/Git Hub/g, 'GitHub');
-      })
-      .filter(skill => {
-        // Remove skills that are actually the next category name
-        return !knownCategories.some(cat => skill.includes(cat.split(' ')[0]));
-      })
       .filter(skill => skill.length > 1 && skill.length < 50)
-      .filter(skill => !skill.match(/^\d+$/)) // Remove standalone numbers
-      .slice(0, 15); // Limit skills per category
+      .filter(skill => !skill.match(/^\d+$/))
+      .slice(0, 20);
     
     if (individualSkills.length > 0) {
       const skillCategory = {
@@ -454,34 +467,8 @@ const extractSkills = (text: string, result: ResumeData) => {
     }
   }
   
-  // Fallback: if no categories were found using the split method, try the old regex approach
   if (result.skills.length === 0) {
-    console.log('Fallback: Using regex approach for skills');
-    const categoryPattern = /([A-Z][a-zA-Z\s&]+?):\s*([^:]+?)(?=\s+[A-Z][a-zA-Z\s&]+?:|$)/g;
-    
-    let categoryMatch;
-    while ((categoryMatch = categoryPattern.exec(skillsText)) !== null) {
-      const [, categoryName, skillsString] = categoryMatch;
-      
-      if (!categoryName || !skillsString) continue;
-      
-      const individualSkills = skillsString
-        .split(/[,;]/)
-        .map(skill => skill.trim())
-        .filter(skill => skill.length > 1 && skill.length < 50)
-        .slice(0, 15);
-      
-      if (individualSkills.length > 0) {
-        const skillCategory = {
-          id: `skill_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          category: categoryName.trim(),
-          skills: individualSkills
-        };
-        
-        result.skills.push(skillCategory);
-        console.log(`✓ Added skill category: ${categoryName} (${individualSkills.length} skills)`);
-      }
-    }
+    console.log('⚠️ No skill categories found with preprocessing approach');
   }
 };
 
