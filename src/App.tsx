@@ -5,18 +5,23 @@ import Navigation from './components/Navigation';
 import EditPanel from './components/EditPanel';
 import PreviewPanel from './components/PreviewPanel';
 import ResizablePanels from './components/ResizablePanels';
+import AutoSaveIndicator from './components/AutoSaveIndicator';
 import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
   const { isDarkMode } = useThemeStore();
   
-  // Apply theme attribute to document element for scrollbar styling
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.setAttribute('data-theme', 'dark');
     } else {
       document.documentElement.removeAttribute('data-theme');
     }
+  }, [isDarkMode]);
+
+  useEffect(() => {
+    console.log('Resume Builder App initialized with persistence');
+    console.log('Theme:', isDarkMode ? 'Dark' : 'Light');
   }, [isDarkMode]);
   
   return (
@@ -28,6 +33,8 @@ function App() {
           leftPanel={<EditPanel />}
           rightPanel={<PreviewPanel />}
         />
+        
+        <AutoSaveIndicator />
       </div>
     </ErrorBoundary>
   );

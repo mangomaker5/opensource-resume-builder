@@ -23,7 +23,7 @@ const Navigation: React.FC = () => {
       'application/pdf': ['.pdf']
     },
     multiple: false,
-    maxSize: 10 * 1024 * 1024, // 10MB limit
+    maxSize: 10 * 1024 * 1024,
     onDrop: async (acceptedFiles, rejectedFiles) => {
       if (rejectedFiles.length > 0) {
         setImportStatus({
@@ -47,21 +47,17 @@ const Navigation: React.FC = () => {
     setImportStatus({ message: 'Reading PDF file...', type: 'loading' });
     
     try {
-      // Small delay to show loading state
       await new Promise(resolve => setTimeout(resolve, 500));
       
       setImportStatus({ message: 'Extracting text from PDF...', type: 'loading' });
       
-      // Parse the PDF file
       const parsedData = await parsePDFFile(file);
       
       if (parsedData) {
         setImportStatus({ message: 'Filling form fields...', type: 'loading' });
         
-        // Small delay to show progress
         await new Promise(resolve => setTimeout(resolve, 300));
         
-        // Update the resume store with parsed data
         setResumeData(parsedData);
         
         setImportStatus({ 
@@ -71,7 +67,6 @@ const Navigation: React.FC = () => {
         
         console.log('PDF import completed successfully');
         
-        // Clear status after 3 seconds
         setTimeout(() => {
           setImportStatus({ message: '', type: '' });
         }, 3000);
@@ -88,7 +83,6 @@ const Navigation: React.FC = () => {
         type: 'error' 
       });
       
-      // Clear error after 5 seconds
       setTimeout(() => {
         setImportStatus({ message: '', type: '' });
       }, 5000);
@@ -138,7 +132,6 @@ const Navigation: React.FC = () => {
   return (
     <>
       <nav className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-b px-4 py-3 flex items-center justify-between`}>
-        {/* Left - File Upload */}
         <div className="flex items-center gap-4">
           <div
             {...getRootProps()}
@@ -167,7 +160,6 @@ const Navigation: React.FC = () => {
             </span>
           </div>
           
-          {/* Import Status */}
           {importStatus.message && (
             <div className={`
               flex items-center gap-2 text-sm px-3 py-2 rounded-lg border transition-all duration-200
@@ -179,7 +171,6 @@ const Navigation: React.FC = () => {
           )}
         </div>
 
-        {/* Center - Branding */}
         <div className="flex items-center gap-2">
           <FileText className="w-6 h-6 text-blue-600" />
           <h1 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
@@ -187,7 +178,6 @@ const Navigation: React.FC = () => {
           </h1>
         </div>
 
-        {/* Right - Theme Toggle and Reset Button */}
         <div className="flex items-center gap-2">
           <button
             onClick={toggleTheme}

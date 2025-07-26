@@ -1,4 +1,4 @@
-// src/utils/pdfParser.ts - Simple Working Parser
+// src/utils/pdfParser.ts - Simple Closed-Loop Parser
 import * as pdfjsLib from 'pdfjs-dist';
 import { ResumeData } from '../types/resume';
 
@@ -22,11 +22,11 @@ export const parsePDFFile = async (file: File): Promise<ResumeData | null> => {
         .map((item: any) => item.str)
         .join(' ');
       
-      fullText += pageText + '\n';
+      fullText += pageText + ' ';
     }
     
     console.log('Full text extracted, total length:', fullText.length);
-    console.log('Raw text preview:', fullText.substring(0, 300));
+    console.log('Raw text:', fullText);
     
     const parsedData = parseResumeText(fullText);
     return parsedData;
@@ -39,10 +39,6 @@ export const parsePDFFile = async (file: File): Promise<ResumeData | null> => {
 
 const parseResumeText = (text: string): ResumeData => {
   console.log('=== STARTING SIMPLE PARSING ===');
-  
-  // Clean text
-  const cleanText = text.replace(/\s+/g, ' ').trim();
-  console.log('Cleaned text length:', cleanText.length);
   
   const result: ResumeData = {
     personalInfo: {
@@ -59,22 +55,14 @@ const parseResumeText = (text: string): ResumeData => {
     skills: []
   };
   
-  // 1. Extract Contact Info (this seems to work)
-  extractBasicInfo(cleanText, result);
+  // Extract all sections
+  extractPersonalInfo(text, result);
+  extractSummary(text, result);
+  extractExperience(text, result);
+  extractEducation(text, result);
+  extractSkills(text, result);
   
-  // 2. Extract Summary (simple approach)
-  extractSummary(cleanText, result);
-  
-  // 3. Extract Experience (simple approach)  
-  extractExperience(cleanText, result);
-  
-  // 4. Extract Education (simple approach)
-  extractEducation(cleanText, result);
-  
-  // 5. Extract Skills (simple approach)
-  extractSkills(cleanText, result);
-  
-  console.log('=== PARSING RESULTS ===');
+  console.log('=== PARSING COMPLETE ===');
   console.log('Name:', result.personalInfo.fullName);
   console.log('Email:', result.personalInfo.email);
   console.log('Summary length:', result.personalInfo.summary.length);
@@ -85,134 +73,135 @@ const parseResumeText = (text: string): ResumeData => {
   return result;
 };
 
-const extractBasicInfo = (text: string, result: ResumeData) => {
-  console.log('--- Extracting Basic Info ---');
+const extractPersonalInfo = (text: string, result: ResumeData) => {
+  console.log('--- Extracting Personal Information ---');
   
-  // Name - look for the pattern at the start
-  const nameMatch = text.match(/^([A-Z][a-z]+\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/);
+  // Extract name (first meaningful text before email)
+  const nameMatch = text.match(/^([A-Z][a-zA-Z]+(?: [A-Z][a-zA-Z]+)*)/);
   if (nameMatch) {
-    result.personalInfo.fullName = nameMatch[1];
-    console.log('✓ Name found:', result.personalInfo.fullName);
+    result.personalInfo.fullName = nameMatch[1].trim();
+    console.log('✓ Name:', result.personalInfo.fullName);
   }
   
-  // Email
+  // Extract email
   const emailMatch = text.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
   if (emailMatch) {
     result.personalInfo.email = emailMatch[1];
-    console.log('✓ Email found:', result.personalInfo.email);
+    console.log('✓ Email:', result.personalInfo.email);
   }
   
-  // Phone  
+  // Extract phone
   const phoneMatch = text.match(/(\(\d{3}\)\s*\d{3}[-.\s]?\d{4}|\d{3}[-.\s]\d{3}[-.\s]\d{4})/);
   if (phoneMatch) {
     result.personalInfo.phone = phoneMatch[1];
-    console.log('✓ Phone found:', result.personalInfo.phone);
+    console.log('✓ Phone:', result.personalInfo.phone);
   }
   
-  // Location
-  const locationMatch = text.match(/([A-Z][a-z]+,\s*[A-Z]{2})/);
+  // Extract location
+  const locationMatch = text.match(/([A-Z][a-zA-Z\s]+,\s*[A-Z]{2})/);
   if (locationMatch) {
     result.personalInfo.location = locationMatch[1];
-    console.log('✓ Location found:', result.personalInfo.location);
+    console.log('✓ Location:', result.personalInfo.location);
   }
   
-  // LinkedIn
-  const linkedInMatch = text.match(/(linkedin\.com\/in\/[^\s]+)/i);
+  // Extract LinkedIn
+  const linkedInMatch = text.match(/(https?:\/\/)?linkedin\.com\/in\/[^\s]+/i);
   if (linkedInMatch) {
-    result.personalInfo.linkedIn = `https://${linkedInMatch[1]}`;
-    console.log('✓ LinkedIn found:', result.personalInfo.linkedIn);
+    result.personalInfo.linkedIn = linkedInMatch[0].startsWith('http') 
+      ? linkedInMatch[0] 
+      : `https://${linkedInMatch[0]}`;
+    console.log('✓ LinkedIn:', result.personalInfo.linkedIn);
   }
   
-  // Website
-  const websiteMatch = text.match(/([a-zA-Z0-9.-]+\.(?:dev|com|net|org|io))/);
-  if (websiteMatch && !websiteMatch[1].includes('linkedin') && !websiteMatch[1].includes('email')) {
-    result.personalInfo.website = `https://${websiteMatch[1]}`;
-    console.log('✓ Website found:', result.personalInfo.website);
+  // Extract website
+  const websiteMatch = text.match(/(https?:\/\/)?([a-zA-Z0-9.-]+\.(?:dev|com|net|org|io))/);
+  if (websiteMatch && !websiteMatch[0].includes('linkedin') && !websiteMatch[0].includes('@')) {
+    result.personalInfo.website = websiteMatch[0].startsWith('http') 
+      ? websiteMatch[0] 
+      : `https://${websiteMatch[0]}`;
+    console.log('✓ Website:', result.personalInfo.website);
   }
 };
 
 const extractSummary = (text: string, result: ResumeData) => {
-  console.log('--- Extracting Summary ---');
+  console.log('--- Extracting Professional Summary ---');
   
-  // Look for summary section with flexible matching
-  const summaryPatterns = [
-    /(?:PROFESSIONAL\s+SUMMARY|SUMMARY|PROFILE|OBJECTIVE)\s*([^A-Z]{50,500}?)(?=[A-Z]{2,}\s+[A-Z]|$)/i,
-    /SUMMARY\s+(.{50,500}?)(?=EXPERIENCE|EDUCATION|SKILLS)/i
-  ];
+  // Find text between PROFESSIONAL SUMMARY and next section
+  const summaryMatch = text.match(/PROFESSIONAL\s+SUMMARY\s+(.+?)(?=PROFESSIONAL\s+EXPERIENCE|TECHNICAL\s+SKILLS|EXPERIENCE|EDUCATION)/is);
   
-  for (const pattern of summaryPatterns) {
-    const match = text.match(pattern);
-    if (match) {
-      result.personalInfo.summary = match[1].trim();
-      console.log('✓ Summary found, length:', result.personalInfo.summary.length);
-      break;
-    }
-  }
-  
-  if (!result.personalInfo.summary) {
+  if (summaryMatch) {
+    result.personalInfo.summary = summaryMatch[1].trim();
+    console.log('✓ Summary found, length:', result.personalInfo.summary.length);
+  } else {
     console.log('✗ No summary found');
   }
 };
 
 const extractExperience = (text: string, result: ResumeData) => {
-  console.log('--- Extracting Experience ---');
+  console.log('--- Extracting Professional Experience ---');
   
   // Find experience section
-  const expMatch = text.match(/(?:PROFESSIONAL\s+EXPERIENCE|EXPERIENCE|WORK\s+EXPERIENCE)\s+(.+?)(?=EDUCATION|SKILLS|$)/is);
+  const expMatch = text.match(/PROFESSIONAL\s+EXPERIENCE\s+(.+?)(?=EDUCATION|TECHNICAL\s+SKILLS)/is);
   if (!expMatch) {
     console.log('✗ No experience section found');
     return;
   }
   
-  const expText = expMatch[1];
+  const expText = expMatch[1].trim();
   console.log('Experience section found, length:', expText.length);
   
-  // Look for job entries with dates
-  const jobPattern = /([A-Z][A-Za-z\s]+?)\s+([A-Z][A-Za-z\s&.]+?)\s*•\s*([A-Za-z\s,]+?)\s+((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\s*-\s*(?:Present|\w+\s+\d{4}))/g;
+  // Since your PDF generates this format:
+  // "Senior Full Stack Developer Company Name • TechCorp Solutions • San Francisco, CA January 2022 - Present Led development..."
+  
+  // Look for job title followed by company pattern
+  const jobPattern = /([A-Z][a-zA-Z\s]+?)\s+([^•]+•[^•]+•[^•]+)\s+([A-Z][a-z]+\s+\d{4}\s*-\s*(?:Present|[A-Z][a-z]+\s+\d{4}))\s*(.+?)(?=[A-Z][a-zA-Z\s]+?\s+[^•]+•|$)/g;
   
   let match;
   while ((match = jobPattern.exec(expText)) !== null) {
     const position = match[1].trim();
-    const company = match[2].trim();
-    const location = match[3].trim();
-    const dateRange = match[4].trim();
+    const companyLine = match[2].trim();
+    const dateRange = match[3].trim();
+    const responsibilitiesText = match[4].trim();
     
-    console.log(`Found job: ${position} at ${company}`);
+    console.log('Found job:', position);
+    console.log('Company line:', companyLine);
+    console.log('Date range:', dateRange);
+    
+    // Parse company line: "Company Name • TechCorp Solutions • San Francisco, CA"
+    const companyParts = companyLine.split('•').map(part => part.trim());
+    const company = companyParts[1] || companyParts[0];
+    const location = companyParts[companyParts.length - 1];
     
     // Parse dates
-    const [startDate, endDate] = dateRange.split(' - ');
-    const isCurrent = endDate.toLowerCase().includes('present');
+    const [startDateStr, endDateStr] = dateRange.split(' - ');
+    const current = endDateStr.toLowerCase().includes('present');
+    const startDate = convertToMonthYear(startDateStr.trim());
+    const endDate = current ? '' : convertToMonthYear(endDateStr.trim());
     
-    // Find responsibilities (text after this job until next job or section end)
-    const jobStart = expText.indexOf(match[0]) + match[0].length;
-    const nextJobMatch = jobPattern.exec(expText);
-    const jobEnd = nextJobMatch ? nextJobMatch.index : expText.length;
-    
-    const responsibilitiesText = expText.substring(jobStart, jobEnd);
-    
-    // Extract bullet points
+    // Parse responsibilities (split by common starting words)
     const responsibilities = responsibilitiesText
-      .split(/Led|Architected|Mentored|Optimized|Collaborated|Developed|Managed|Created|Implemented/)
-      .filter(r => r.trim().length > 20)
-      .map(r => r.trim().replace(/^[^\w]*/, ''))
-      .slice(0, 5);
+      .split(/(?=Led |Architected |Mentored |Optimized |Collaborated |Developed |Managed |Created |Implemented )/i)
+      .map(resp => resp.trim())
+      .filter(resp => resp.length > 5)
+      .slice(0, 10);
+    
+    if (responsibilities.length === 0) {
+      responsibilities.push('');
+    }
     
     const experience = {
-      id: `exp_${Date.now()}_${Math.random()}`,
+      id: `exp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       company: company,
       position: position,
       location: location,
-      startDate: convertToMonthYear(startDate),
-      endDate: isCurrent ? '' : convertToMonthYear(endDate),
-      current: isCurrent,
-      responsibilities: responsibilities.length > 0 ? responsibilities : ['']
+      startDate: startDate,
+      endDate: endDate,
+      current: current,
+      responsibilities: responsibilities
     };
     
     result.experience.push(experience);
-    console.log('✓ Added experience:', position);
-    
-    // Reset regex
-    jobPattern.lastIndex = nextJobMatch ? nextJobMatch.index : expText.length;
+    console.log('✓ Added experience:', position, 'at', company);
   }
   
   console.log(`Total experience items: ${result.experience.length}`);
@@ -222,50 +211,51 @@ const extractEducation = (text: string, result: ResumeData) => {
   console.log('--- Extracting Education ---');
   
   // Find education section
-  const eduMatch = text.match(/EDUCATION\s+(.+?)(?=TECHNICAL\s+SKILLS|SKILLS|$)/is);
+  const eduMatch = text.match(/EDUCATION\s+(.+?)(?=TECHNICAL\s+SKILLS|$)/is);
   if (!eduMatch) {
     console.log('✗ No education section found');
     return;
   }
   
-  const eduText = eduMatch[1];
+  const eduText = eduMatch[1].trim();
   console.log('Education section found, length:', eduText.length);
+  console.log('Education text:', eduText);
   
-  // Look for degree patterns
-  const degreePattern = /(Master|Bachelor|PhD|M\.S\.|B\.S\.|MBA)\s+[^•]*?([A-Za-z\s&]+University[^•]*?)(?:GPA[:\s]*([0-9.]+))?\s*([A-Z][a-z]+\s+\d{4})/gi;
+  // Your format: "Master of Science in Computer Science in Computer Science Stanford University • GPA: 3.8 December 2016"
+  const eduPattern = /(Master|Bachelor|PhD|M\.S\.|B\.S\.|MBA|Associate)[^•]+?([A-Z][^•]+University[^•]*?)(?:•\s*GPA[:\s]*([0-9.]+))?\s*([A-Z][a-z]+\s+\d{4})/gi;
   
   let match;
-  while ((match = degreePattern.exec(eduText)) !== null) {
-    const degreeInfo = match[1];
+  while ((match = eduPattern.exec(eduText)) !== null) {
+    const degreeFull = match[1] + match[0].substring(match[1].length, match[0].indexOf(match[2]));
     const institution = match[2].trim();
     const gpa = match[3] || '';
     const graduationDate = match[4];
     
-    // Extract field from degree info
-    const fieldMatch = degreeInfo.match(/(?:in|of)\s+([A-Za-z\s]+)/i);
+    // Extract field from degree
+    const fieldMatch = degreeFull.match(/(?:in|of)\s+([^in]+?)(?:\s+in\s+|$)/i);
     const field = fieldMatch ? fieldMatch[1].trim() : '';
     
     const education = {
-      id: `edu_${Date.now()}_${Math.random()}`,
-      institution: institution.replace(/\s*•.*$/, ''),
-      degree: degreeInfo,
+      id: `edu_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      institution: institution,
+      degree: match[1], // Just the degree type
       field: field,
       graduationDate: convertToMonthYear(graduationDate),
       gpa: gpa
     };
     
     result.education.push(education);
-    console.log('✓ Added education:', education.degree);
+    console.log('✓ Added education:', match[1], 'from', institution);
   }
   
   console.log(`Total education items: ${result.education.length}`);
 };
 
 const extractSkills = (text: string, result: ResumeData) => {
-  console.log('--- Extracting Skills ---');
+  console.log('--- Extracting Technical Skills ---');
   
   // Find skills section
-  const skillsMatch = text.match(/(?:TECHNICAL\s+SKILLS|SKILLS)\s+(.+?)$/is);
+  const skillsMatch = text.match(/TECHNICAL\s+SKILLS\s+(.+?)$/is);
   if (!skillsMatch) {
     console.log('✗ No skills section found');
     return;
@@ -275,7 +265,7 @@ const extractSkills = (text: string, result: ResumeData) => {
   console.log('Skills section found, length:', skillsText.length);
   
   // Extract skill categories
-  const categoryPattern = /([A-Za-z\s&]+?):\s*([^:]+?)(?=[A-Z][A-Za-z\s&]*:|$)/g;
+  const categoryPattern = /([A-Za-z\s&]+?):\s*([^:]+?)(?=\s*[A-Za-z\s&]+:|$)/g;
   
   let match;
   while ((match = categoryPattern.exec(skillsText)) !== null) {
@@ -286,11 +276,11 @@ const extractSkills = (text: string, result: ResumeData) => {
       .split(/[,\n]/)
       .map(skill => skill.trim())
       .filter(skill => skill.length > 0)
-      .slice(0, 10);
+      .slice(0, 15);
     
     if (skills.length > 0) {
       const skillCategory = {
-        id: `skill_${Date.now()}_${Math.random()}`,
+        id: `skill_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         category: category,
         skills: skills
       };
@@ -304,21 +294,33 @@ const extractSkills = (text: string, result: ResumeData) => {
 };
 
 const convertToMonthYear = (dateStr: string): string => {
+  if (!dateStr) return '';
+  
   try {
     const months = [
       'January', 'February', 'March', 'April', 'May', 'June',
       'July', 'August', 'September', 'October', 'November', 'December'
     ];
     
-    const [month, year] = dateStr.trim().split(' ');
-    const monthIndex = months.findIndex(m => m.toLowerCase() === month.toLowerCase());
+    const cleanDate = dateStr.trim();
+    const monthYearMatch = cleanDate.match(/^([A-Za-z]+)\s+(\d{4})$/);
     
-    if (monthIndex !== -1 && year) {
-      return `${year}-${(monthIndex + 1).toString().padStart(2, '0')}`;
+    if (monthYearMatch) {
+      const month = monthYearMatch[1];
+      const year = monthYearMatch[2];
+      
+      const monthIndex = months.findIndex(m => 
+        m.toLowerCase().startsWith(month.toLowerCase().substring(0, 3))
+      );
+      
+      if (monthIndex !== -1) {
+        return `${year}-${(monthIndex + 1).toString().padStart(2, '0')}`;
+      }
     }
     
     return '';
-  } catch {
+  } catch (error) {
+    console.error('Date conversion error:', error);
     return '';
   }
 };

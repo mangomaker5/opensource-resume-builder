@@ -1,10 +1,12 @@
 // src/store/resumeStore.ts
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { ResumeData, Experience, Education, Skill } from '../types/resume';
 
 interface ResumeStore {
   resumeData: ResumeData;
   zoom: number;
+  lastSaved: string;
   updatePersonalInfo: (info: Partial<ResumeData['personalInfo']>) => void;
   addExperience: () => void;
   updateExperience: (id: string, experience: Partial<Experience>) => void;
@@ -18,7 +20,7 @@ interface ResumeStore {
   setZoom: (zoom: number) => void;
   resetZoom: () => void;
   resetResume: () => void;
-  setResumeData: (data: ResumeData) => void; // New method for PDF import
+  setResumeData: (data: ResumeData) => void;
 }
 
 const initialResumeData: ResumeData = {
@@ -36,131 +38,165 @@ const initialResumeData: ResumeData = {
   skills: []
 };
 
-export const useResumeStore = create<ResumeStore>((set) => ({
-  resumeData: initialResumeData,
-  zoom: 0.8,
-  
-  updatePersonalInfo: (info) =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        personalInfo: { ...state.resumeData.personalInfo, ...info }
-      }
-    })),
+export const useResumeStore = create<ResumeStore>()(
+  persist(
+    (set, get) => ({
+      resumeData: initialResumeData,
+      zoom: 0.8,
+      lastSaved: new Date().toISOString(),
+      
+      updatePersonalInfo: (info) =>
+        set((state) => ({
+          resumeData: {
+            ...state.resumeData,
+            personalInfo: { ...state.resumeData.personalInfo, ...info }
+          },
+          lastSaved: new Date().toISOString()
+        })),
 
-  addExperience: () =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        experience: [
-          ...state.resumeData.experience,
-          {
-            id: Date.now().toString(),
-            company: '',
-            position: '',
-            location: '',
-            startDate: '',
-            endDate: '',
-            current: false,
-            responsibilities: ['']
-          }
-        ]
-      }
-    })),
+      addExperience: () =>
+        set((state) => ({
+          resumeData: {
+            ...state.resumeData,
+            experience: [
+              ...state.resumeData.experience,
+              {
+                id: `exp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                company: '',
+                position: '',
+                location: '',
+                startDate: '',
+                endDate: '',
+                current: false,
+                responsibilities: ['']
+              }
+            ]
+          },
+          lastSaved: new Date().toISOString()
+        })),
 
-  updateExperience: (id, experience) =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        experience: state.resumeData.experience.map((exp) =>
-          exp.id === id ? { ...exp, ...experience } : exp
-        )
-      }
-    })),
+      updateExperience: (id, experience) =>
+        set((state) => ({
+          resumeData: {
+            ...state.resumeData,
+            experience: state.resumeData.experience.map((exp) =>
+              exp.id === id ? { ...exp, ...experience } : exp
+            )
+          },
+          lastSaved: new Date().toISOString()
+        })),
 
-  deleteExperience: (id) =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        experience: state.resumeData.experience.filter((exp) => exp.id !== id)
-      }
-    })),
+      deleteExperience: (id) =>
+        set((state) => ({
+          resumeData: {
+            ...state.resumeData,
+            experience: state.resumeData.experience.filter((exp) => exp.id !== id)
+          },
+          lastSaved: new Date().toISOString()
+        })),
 
-  addEducation: () =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        education: [
-          ...state.resumeData.education,
-          {
-            id: Date.now().toString(),
-            institution: '',
-            degree: '',
-            field: '',
-            graduationDate: '',
-            gpa: ''
-          }
-        ]
-      }
-    })),
+      addEducation: () =>
+        set((state) => ({
+          resumeData: {
+            ...state.resumeData,
+            education: [
+              ...state.resumeData.education,
+              {
+                id: `edu_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                institution: '',
+                degree: '',
+                field: '',
+                graduationDate: '',
+                gpa: ''
+              }
+            ]
+          },
+          lastSaved: new Date().toISOString()
+        })),
 
-  updateEducation: (id, education) =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        education: state.resumeData.education.map((edu) =>
-          edu.id === id ? { ...edu, ...education } : edu
-        )
-      }
-    })),
+      updateEducation: (id, education) =>
+        set((state) => ({
+          resumeData: {
+            ...state.resumeData,
+            education: state.resumeData.education.map((edu) =>
+              edu.id === id ? { ...edu, ...education } : edu
+            )
+          },
+          lastSaved: new Date().toISOString()
+        })),
 
-  deleteEducation: (id) =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        education: state.resumeData.education.filter((edu) => edu.id !== id)
-      }
-    })),
+      deleteEducation: (id) =>
+        set((state) => ({
+          resumeData: {
+            ...state.resumeData,
+            education: state.resumeData.education.filter((edu) => edu.id !== id)
+          },
+          lastSaved: new Date().toISOString()
+        })),
 
-  addSkill: () =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        skills: [
-          ...state.resumeData.skills,
-          {
-            id: Date.now().toString(),
-            category: '',
-            skills: ['']
-          }
-        ]
-      }
-    })),
+      addSkill: () =>
+        set((state) => ({
+          resumeData: {
+            ...state.resumeData,
+            skills: [
+              ...state.resumeData.skills,
+              {
+                id: `skill_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                category: '',
+                skills: ['']
+              }
+            ]
+          },
+          lastSaved: new Date().toISOString()
+        })),
 
-  updateSkill: (id, skill) =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        skills: state.resumeData.skills.map((s) =>
-          s.id === id ? { ...s, ...skill } : s
-        )
-      }
-    })),
+      updateSkill: (id, skill) =>
+        set((state) => ({
+          resumeData: {
+            ...state.resumeData,
+            skills: state.resumeData.skills.map((s) =>
+              s.id === id ? { ...s, ...skill } : s
+            )
+          },
+          lastSaved: new Date().toISOString()
+        })),
 
-  deleteSkill: (id) =>
-    set((state) => ({
-      resumeData: {
-        ...state.resumeData,
-        skills: state.resumeData.skills.filter((s) => s.id !== id)
-      }
-    })),
+      deleteSkill: (id) =>
+        set((state) => ({
+          resumeData: {
+            ...state.resumeData,
+            skills: state.resumeData.skills.filter((s) => s.id !== id)
+          },
+          lastSaved: new Date().toISOString()
+        })),
 
-  setZoom: (zoom) => set({ zoom }),
-  
-  resetZoom: () => set({ zoom: 0.8 }),
-  
-  resetResume: () => set({ resumeData: initialResumeData, zoom: 0.8 }),
+      setZoom: (zoom) => set({ zoom }),
+      
+      resetZoom: () => set({ zoom: 0.8 }),
+      
+      resetResume: () => set({ 
+        resumeData: initialResumeData, 
+        zoom: 0.8,
+        lastSaved: new Date().toISOString()
+      }),
 
-  // New method to set complete resume data (for PDF import)
-  setResumeData: (data) => set({ resumeData: data })
-}));
+      setResumeData: (data) => set({ 
+        resumeData: data,
+        lastSaved: new Date().toISOString()
+      })
+    }),
+    {
+      name: 'resume-storage',
+      version: 1,
+      partialize: (state) => ({
+        resumeData: state.resumeData,
+        zoom: state.zoom
+      }),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.lastSaved = new Date().toISOString();
+        }
+      },
+    }
+  )
+);
