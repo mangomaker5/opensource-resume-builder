@@ -7,8 +7,8 @@ export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
     exclude: ['lucide-react'],
+    include: ['@react-pdf/renderer']
   },
-  // Add this to handle PDF.js worker
   define: {
     global: 'globalThis',
   },
@@ -18,4 +18,14 @@ export default defineConfig({
       'Cross-Origin-Opener-Policy': 'same-origin',
     },
   },
+  build: {
+    rollupOptions: {
+      external: [],
+      output: {
+        manualChunks: {
+          'react-pdf': ['@react-pdf/renderer']
+        }
+      }
+    }
+  }
 });

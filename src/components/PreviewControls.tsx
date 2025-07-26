@@ -1,12 +1,13 @@
+// src/components/PreviewControls.tsx
 import React from 'react';
 import { ZoomIn, ZoomOut, Maximize, Download } from 'lucide-react';
+import { pdf } from '@react-pdf/renderer';
 import { useResumeStore } from '../store/resumeStore';
 import { useThemeStore } from '../store/themeStore';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import ResumePDFDocument from './ResumePDFDocument';
 
 const PreviewControls: React.FC = () => {
-  const { zoom, setZoom, resetZoom } = useResumeStore();
+  const { zoom, setZoom, resetZoom, resumeData } = useResumeStore();
   const { isDarkMode } = useThemeStore();
 
   const handleZoomIn = () => {
@@ -18,28 +19,25 @@ const PreviewControls: React.FC = () => {
   };
 
   const handleDownload = async () => {
-    const element = document.getElementById('resume-preview');
-    if (!element) return;
-
     try {
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff'
-      });
-
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save('resume.pdf');
+      // Generate text-based PDF using @react-pdf/renderer
+      const blob = await pdf(<ResumePDFDocument resumeData={resumeData} />).toBlob();
+      
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${resumeData.personalInfo.fullName || 'resume'}.pdf`;
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up
+      URL.revokeObjectURL(url);
+      
+      console.log('PDF downloaded successfully');
     } catch (error) {
       console.error('Error generating PDF:', error);
     }
